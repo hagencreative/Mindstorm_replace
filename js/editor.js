@@ -8,8 +8,14 @@
   const HM = root.HM;
   let pointer = null;
   let drag = null;
-  const dragStart = 8;
-  const dragCommit = 16;
+  let floatFrame = 0;
+  let floatPoint = null;
+  let snapTarget = null;
+  const dragStart = 5;
+  const dragCommit = 12;
+  const SNAP_STACK = 48;
+  const SNAP_SLOT = 40;
+  const MAGNET = 0.42;
 
   function catClass(id) {
     return "cat-" + id;
@@ -369,6 +375,7 @@
     let bestD = limit;
     document.querySelectorAll(selector).forEach((el) => {
       if (accept && el.dataset.accept !== accept) return;
+      if (el.closest("#drag-float")) return;
       const rect = el.getBoundingClientRect();
       if (!rect.width && !rect.height) return;
       const cx = Math.max(rect.left, Math.min(x, rect.right));
@@ -384,23 +391,62 @@
 
   function hoverTarget(x, y) {
     if (!drag) return null;
-    if (drag.kind === "stack") return nearest("#canvas-world .hot", x, y, 24);
-    if (drag.kind === "reporter") return nearest("#canvas-world .socket", x, y, 22, "reporter");
-    if (drag.kind === "boolean") return nearest("#canvas-world .socket", x, y, 22, "boolean");
+    if (drag.kind === "stack") return nearest("#canvas-world .hot", x, y, SNAP_STACK);
+    if (drag.kind === "reporter") return nearest("#canvas-world .socket", x, y, SNAP_SLOT, "reporter");
+    if (drag.kind === "boolean") return nearest("#canvas-world .socket", x, y, SNAP_SLOT, "boolean");
     return null;
   }
 
-  function placeFloat(x, y) {
+  function clearTargets() {
+    document.querySelectorAll(".is-target").forEach((el) => el.classList.remove("is-target"));
+    snapTarget = null;
+  }
+
+  function paintTarget(target) {
+    document.querySelectorAll(".is-target").forEach((el) => {
+      if (el !== target) el.classList.remove("is-target");
+    });
+    snapTarget = target || null;
+    if (target) target.classList.add("is-target");
+  }
+
+  function magnetize(x, y, target) {
+    let px = x - drag.dx;
+    let py = y - drag.dy;
+    if (!target) return { x: px, y: py, scale: 1.03 };
+    const rect = target.getBoundingClientRect();
+    if (target.classList.contains("hot")) {
+      const wantX = rect.left - 6;
+      const wantY = rect.top + rect.height / 2 - 18;
+      px += (wantX - px) * MAGNET;
+      py += (wantY - py) * MAGNET;
+      return { x: px, y: py, scale: 1.02 };
+    }
+    const wantX = rect.left - 4;
+    const wantY = rect.top + rect.height / 2 - 14;
+    px += (wantX - px) * MAGNET;
+    py += (wantY - py) * MAGNET;
+    return { x: px, y: py, scale: 1.02 };
+  }
+
+  function placeFloat(x, y, target) {
     const float = document.getElementById("drag-float");
     if (!float || !drag) return;
-    float.style.transform = "translate3d(" + (x - drag.dx) + "px," + (y - drag.dy) + "px,0)";
+    const pos = magnetize(x, y, target);
+    float.style.transform = "translate3d(" + pos.x + "px," + pos.y + "px,0) scale(" + pos.scale + ")";
   }
 
   function moveFloat(event) {
-    placeFloat(event.clientX, event.clientY);
-    document.querySelectorAll(".is-target").forEach((el) => el.classList.remove("is-target"));
-    const target = hoverTarget(event.clientX, event.clientY);
-    if (target) target.classList.add("is-target");
+    if (!drag || drag.dropping) return;
+    floatPoint = { x: event.clientX, y: event.clientY };
+    if (floatFrame) return;
+    floatFrame = requestAnimationFrame(() => {
+      floatFrame = 0;
+      if (!drag || !floatPoint) return;
+      const target = hoverTarget(floatPoint.x, floatPoint.y);
+      paintTarget(target);
+      placeFloat(floatPoint.x, floatPoint.y, target);
+    });
   }
 
   function showFloat(x, y) {
@@ -410,7 +456,7 @@
     document.body.appendChild(float);
     document.body.classList.add("is-dragging");
     document.getElementById("trash").hidden = false;
-    placeFloat(x, y);
+    placeFloat(x, y, null);
   }
 
   function markOrigin(on) {
@@ -422,13 +468,38 @@
   }
 
   function endDrag() {
+    if (floatFrame) cancelAnimationFrame(floatFrame);
+    floatFrame = 0;
+    floatPoint = null;
     markOrigin(false);
     const float = document.getElementById("drag-float");
     if (float) float.remove();
-    document.querySelectorAll(".is-target").forEach((el) => el.classList.remove("is-target"));
+    clearTargets();
     document.getElementById("trash").hidden = true;
     document.body.classList.remove("is-dragging");
     drag = null;
+  }
+
+  function softDrop(then) {
+    const float = document.getElementById("drag-float");
+    if (!float) {
+      endDrag();
+      then();
+      return;
+    }
+    if (drag) drag.dropping = true;
+    pointer = null;
+    float.classList.add("is-dropping");
+    if (snapTarget) {
+      const rect = snapTarget.getBoundingClientRect();
+      const px = rect.left - (drag ? drag.dx * 0.2 : 0);
+      const py = rect.top - 8;
+      float.style.transform = "translate3d(" + px + "px," + py + "px,0) scale(0.98)";
+    }
+    window.setTimeout(() => {
+      endDrag();
+      then();
+    }, 90);
   }
 
   function idsIn(block, into) {
@@ -511,11 +582,10 @@
         HM.pushHistory(drag.backup);
         detachSource();
       }
-      endDrag();
-      HM.refresh();
+      softDrop(() => HM.refresh());
       return;
     }
-    const target = hoverTarget(event.clientX, event.clientY);
+    const target = snapTarget || hoverTarget(event.clientX, event.clientY);
     if (drag.fromExisting && dropHitsDragged(target)) {
       endDrag();
       return;
@@ -566,12 +636,12 @@
       if (drag.fromExisting) HM.pushHistory(drag.backup);
       else HM.pushHistory(HM._beforeNew || HM.serialize());
     }
-    endDrag();
-    HM.refresh();
+    softDrop(() => HM.refresh());
   }
 
   function onDown(event) {
     if (event.button !== 0) return;
+    if (drag && drag.dropping) return;
     if (event.target.closest("input, select, textarea, button, a, label")) return;
     const palette = event.target.closest("#flyout .block");
     const blockEl = event.target.closest("#canvas-world .block");
@@ -626,6 +696,7 @@
 
   function onMove(event) {
     if (drag) {
+      if (drag.dropping) return;
       moveFloat(event);
       return;
     }
@@ -676,6 +747,7 @@
     window.addEventListener("pointerdown", onDown);
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
     render();
   }
 

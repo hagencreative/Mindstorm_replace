@@ -198,14 +198,124 @@ header {
 .block-bar { display: flex; align-items: center; gap: 6px; padding: 7px 10px; flex-wrap: wrap; }
 #canvas-world .block { width: max-content; }
 #canvas-world .block-bar { flex-wrap: nowrap; }
-.shape-hat { border-radius: 18px 18px 4px 4px; }
-.shape-reporter { border-radius: 999px; }
-.shape-boolean { border-radius: 3px; }
-.shape-c { display: flex; flex-direction: column; padding-bottom: 0; }
-.mouth { margin-left: 16px; background: rgba(0,0,0,0.16); min-height: 28px; padding: 2px 4px 2px 6px; }
-.cap { height: 12px; border-radius: 0 0 4px 4px; }
+/* Blockly-like interlocking puzzle outlines (stack / hat); C uses bar+cap pieces. */
+.shape-stack {
+  border-radius: 0;
+  box-shadow: none;
+  filter: drop-shadow(0 2px 0 rgba(0,0,0,0.28));
+  clip-path: polygon(
+    0 6px,
+    6px 0,
+    10px 0,
+    10px 8px,
+    30px 8px,
+    30px 0,
+    calc(100% - 6px) 0,
+    100% 6px,
+    100% calc(100% - 14px),
+    calc(100% - 4px) calc(100% - 8px),
+    30px calc(100% - 8px),
+    30px 100%,
+    10px 100%,
+    10px calc(100% - 8px),
+    0 calc(100% - 14px)
+  );
+}
+.shape-stack .block-bar { padding: 12px 12px 14px 14px; }
+.shape-hat {
+  border-radius: 0;
+  box-shadow: none;
+  filter: drop-shadow(0 2px 0 rgba(0,0,0,0.28));
+  clip-path: polygon(
+    0 16px,
+    10px 6px,
+    22px 0,
+    calc(100% - 22px) 0,
+    calc(100% - 10px) 6px,
+    100% 16px,
+    100% calc(100% - 12px),
+    calc(100% - 4px) calc(100% - 8px),
+    30px calc(100% - 8px),
+    30px 100%,
+    10px 100%,
+    10px calc(100% - 8px),
+    0 calc(100% - 8px)
+  );
+}
+.shape-hat .block-bar { padding: 14px 16px 14px 18px; }
+.shape-reporter {
+  border-radius: 16px;
+  filter: drop-shadow(0 2px 0 rgba(0,0,0,0.22));
+}
+.shape-boolean {
+  border-radius: 0;
+  box-shadow: none;
+  filter: drop-shadow(0 2px 0 rgba(0,0,0,0.28));
+  clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 12px 100%, 0 50%);
+}
+.shape-boolean .block-bar { padding: 6px 16px; }
+.shape-c {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 0;
+  border-radius: 0;
+  box-shadow: none;
+  filter: drop-shadow(0 2px 0 rgba(0,0,0,0.28));
+}
+.shape-c > .block-bar:first-child {
+  border-radius: 0;
+  padding: 12px 12px 10px 14px;
+  clip-path: polygon(
+    0 6px,
+    6px 0,
+    10px 0,
+    10px 8px,
+    30px 8px,
+    30px 0,
+    calc(100% - 6px) 0,
+    100% 6px,
+    100% 100%,
+    0 100%
+  );
+}
+.shape-c > .block-bar.mid {
+  padding: 8px 12px 8px 14px;
+}
+.shape-c > .cap {
+  height: 18px;
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - 10px),
+    calc(100% - 4px) calc(100% - 6px),
+    30px calc(100% - 6px),
+    30px 100%,
+    10px 100%,
+    10px calc(100% - 6px),
+    0 calc(100% - 10px)
+  );
+}
+.mouth {
+  margin: 0 0 0 18px;
+  background: rgba(0,0,0,0.18);
+  min-height: 32px;
+  padding: 6px 10px 6px 8px;
+  border-radius: 0 12px 12px 0;
+  box-shadow: inset 0 3px 0 rgba(0,0,0,0.12);
+  border-left: 3px solid rgba(0,0,0,0.12);
+}
+.cap { height: 16px; }
 .block.is-selected { outline: 2px solid var(--ink); outline-offset: 2px; }
 .block.is-active { box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--orange-light); }
+.shape-stack.is-active,
+.shape-hat.is-active,
+.shape-boolean.is-active {
+  box-shadow: none;
+  filter: drop-shadow(0 0 0 #fff) drop-shadow(0 0 0 var(--orange-light)) drop-shadow(0 2px 0 rgba(0,0,0,0.28));
+}
+.shape-c.is-active {
+  filter: drop-shadow(0 0 0 #fff) drop-shadow(0 0 0 var(--orange-light)) drop-shadow(0 2px 0 rgba(0,0,0,0.28));
+}
 .in-palette { cursor: grab; }
 .shadow, .menu, .num, .word {
   background: #fff; color: #1c1915; border-radius: 10px; padding: 1px 7px; font-weight: 700;
@@ -213,13 +323,24 @@ header {
 .menu, .num, .word { border: 0; min-width: 18px; }
 .num { width: 58px; text-align: center; }
 .word { width: 92px; }
-.socket { display: inline-flex; align-items: center; min-height: 22px; border-radius: 11px; }
+.socket {
+  display: inline-flex; align-items: center; min-height: 22px; border-radius: 12px;
+  transition: box-shadow 0.12s ease, transform 0.12s ease;
+}
 .socket-empty { width: 32px; height: 18px; border: 2px dashed rgba(255,255,255,0.75); }
-.socket.is-target { box-shadow: 0 0 0 3px var(--orange-light); }
+.socket-empty[data-accept="boolean"] {
+  width: 44px; height: 22px; border: 0; border-radius: 0;
+  background: rgba(255,255,255,0.28);
+  clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 8px 100%, 0 50%);
+}
+.socket.is-target {
+  box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--orange-light), 0 0 14px rgba(255, 148, 3, 0.55);
+  transform: scale(1.06);
+}
 .hot.is-target {
-  height: 10px;
-  background: var(--orange-light);
-  box-shadow: 0 0 0 3px rgba(255, 148, 3, 0.35);
+  background: #ffbf47;
+  box-shadow: 0 0 0 2px #fff, 0 0 14px rgba(255, 148, 3, 0.65);
+  transform: scaleY(1.8) translateX(8px);
 }
 #drag-float {
   position: fixed;
@@ -228,18 +349,41 @@ header {
   z-index: 80;
   margin: 0;
   pointer-events: none;
-  filter: drop-shadow(0 12px 16px rgba(0, 0, 0, 0.28));
-  will-change: transform;
+  opacity: 0.88;
+  transform-origin: 0 0;
+  filter: drop-shadow(0 16px 20px rgba(0, 0, 0, 0.34));
+  will-change: transform, opacity;
+  transition: opacity 0.09s ease;
+}
+#drag-float.is-dropping {
+  opacity: 0.28;
+  transition: opacity 0.09s ease, transform 0.09s ease;
 }
 #drag-float .block { width: max-content; }
 #drag-float .block-bar { flex-wrap: nowrap; }
 #canvas-world .block.is-drag-origin {
-  outline: 2px dashed rgba(43, 43, 43, 0.45);
+  outline: 2px dashed rgba(43, 43, 43, 0.55);
   outline-offset: 3px;
+  opacity: 0.45;
 }
 body.is-dragging, body.is-dragging * { cursor: grabbing; }
-.hot { height: 10px; min-width: 56px; width: 100%; margin: -2px 0; border-radius: 4px; position: relative; z-index: 2; }
-.hot.is-cursor { height: 8px; background: var(--orange-light); box-shadow: 0 0 0 3px rgba(255,148,3,0.35); }
+body.is-dragging { touch-action: none; }
+.hot {
+  height: 10px;
+  min-width: 56px;
+  width: 100%;
+  margin: -5px 0;
+  border-radius: 5px;
+  position: relative;
+  z-index: 4;
+  transform-origin: left center;
+  transition: background 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
+}
+.hot.is-cursor {
+  background: #ffbf47;
+  box-shadow: 0 0 0 2px #fff, 0 0 10px rgba(255, 148, 3, 0.45);
+  transform: scaleY(1.55) translateX(6px);
+}
 .cat-events { background: var(--events); color: #2a2416; }
 .cat-motors { background: var(--motors); }
 .cat-move { background: var(--move); }
